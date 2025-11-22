@@ -1,10 +1,14 @@
 import express from "express";
 import dotenv from "dotenv";
-import { getSearchResults } from "./services/searchService.js";
+import cors from "cors";  // <-- ADD THIS
 
 dotenv.config();
 
 const app = express();
+
+// Enable CORS for all origins (works for development)
+app.use(cors());   // <-- FIXES your “Failed to fetch” error
+
 app.use(express.json());
 
 // Prevent favicon errors
@@ -22,7 +26,7 @@ app.post("/search", async (req, res) => {
   }
 
   try {
-    // ⬅⬅ Dynamic import — Jest can now mock this!
+    // Dynamic import — required for Jest mocking
     const { getSearchResults } = await import("./services/searchService.js");
 
     const raw = await getSearchResults(query, process.env.SERPAPI_KEY);
@@ -44,7 +48,7 @@ app.post("/search", async (req, res) => {
 // Export for tests
 export default app;
 
-// Only start server locally
+// Start server normally (but not during tests)
 if (process.env.NODE_ENV !== "test") {
   const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
