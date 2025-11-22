@@ -1,61 +1,51 @@
 import express from "express";
-import axios from "axios";
-import cors from "cors";
+import dotenv from "dotenv";
+import { getSearchResults } from "./services/searchService.js";
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors());
 
-const SERPAPI_KEY = process.env.SERPAPI_KEY;
+// Prevent favicon errors
+app.get("/favicon.ico", (req, res) => res.status(204).end());
 
-/**
- * Root endpoint to verify the API is working
- */
 app.get("/", (req, res) => {
-  res.send("API is running ✔️");
+  res.send("API is running");
 });
 
-/**
- * POST /search
- * Fetches search results from SerpAPI
- */
 app.post("/search", async (req, res) => {
   const query = req.body.query;
 
   if (!query) {
-    return res.status(400).json({ error: "Missing query" });
+    return res.status(400).json({ error: "Query is required." });
   }
 
   try {
-    const response = await axios.get("https://serpapi.com/search", {
-      params: {
-        engine: "google",
-        q: query,
-        api_key: SERPAPI_KEY
-      }
-    });
+    // ⬅⬅ Dynamic import — Jest can now mock this!
+    const { getSearchResults } = await import("./services/searchService.js");
 
-    res.json({
-      status: "success",
-      query: query,
-      results: response.data.organic_results || []
-    });
+    const raw = await getSearchResults(query, process.env.SERPAPI_KEY);
+
+    const results = (raw.organic_results || []).map(r => ({
+      title: r.title,
+      link: r.link,
+      snippet: r.snippet || ""
+    }));
+
+    return res.json({ query, results });
 
   } catch (error) {
-    console.error("SerpAPI error:", error.response?.data || error.message);
-
-    res.status(500).json({
-      status: "error",
-      message: "SerpAPI request failed",
-      details: error.response?.data || error.message
-    });
+    console.error("Search error:", error);
+    return res.status(500).json({ error: "Failed to fetch search results" });
   }
 });
 
-/**
- * Required for Render deployment
- */
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+// Export for tests
+export default app;
+
+// Only start server locally
+if (process.env.NODE_ENV !== "test") {
+  const PORT = process.env.PORT || 8080;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
