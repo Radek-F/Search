@@ -1,7 +1,0 @@
-# Node
-node_modules/
-npm-debug.log
-.env
-
-# Render temporary files
-.DS_Store
